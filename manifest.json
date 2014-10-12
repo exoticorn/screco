@@ -9,6 +9,8 @@
     }
   },
   "permissions": [
-    "audioCapture"
+    "audioCapture",
+    { "fileSystem": ["write", "retainEntries", "directory"] },
+    "storage"
   ]
 }

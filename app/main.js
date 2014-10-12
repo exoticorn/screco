@@ -1,4 +1,4 @@
-require(['libs/react-0.11.2.js', 'vorbisrecorder'], function(React, VorbisRecorder) {
+require(['libs/react-0.11.2.js', 'vorbisrecorder', 'scratchrecorder'], function(React, VorbisRecorder, ScratchRecorder) {
   var vorbisRecorder = new VorbisRecorder();
   var audio = new AudioContext();
   var App = React.createClass({
@@ -6,47 +6,47 @@ require(['libs/react-0.11.2.js', 'vorbisrecorder'], function(React, VorbisRecord
       return { ready: false };
     },
     componentDidMount: function() {
+      var self = this;
       vorbisRecorder.ready().then(this.setReady);
+      chrome.storage.local.get('directory', function(items) {
+        if(items.directory !== undefined) {
+          chrome.fileSystem.restoreEntry(items.directory, self.setDirectory);
+        }
+      });
     },
     setReady: function() {
       this.setState({ ready: true });
     },
-    startRecording: function() {
+    chooseDirectory: function() {
       var self = this;
-      navigator.webkitGetUserMedia({audio: true}, function(stream) {
-        self.setState({
-          recorder: vorbisRecorder.startRecording(
-            stream.getAudioTracks()[0]
-          )
-        });
-      }, function(e) {
-        console.log(e);
+      chrome.fileSystem.chooseEntry({type: 'openDirectory'}, function(entry) {
+        self.setDirectory(entry);
+        var id = chrome.fileSystem.retainEntry(entry);
+        chrome.storage.local.set({ directory: id });
       });
     },
-    stopRecording: function() {
-      this.state.recorder.stop().then(function(data) {
-        console.log(data.byteLength);
-        audio.decodeAudioData(data, function(buffer) {
-          var source = audio.createBufferSource();
-          source.buffer = buffer;
-          source.connect(audio.destination);
-          source.start();
-        }, function() {
-          console.log('failed to decode audio data');
-        });
+    setDirectory: function(entry) {
+      var self = this;
+      self.setState({ directory: entry });
+      chrome.fileSystem.getDisplayPath(entry, function(displayPath) {
+        self.setState({ displayPath: displayPath });
       });
-      this.setState({ recorder: undefined });
+    },
+    clearDirectory: function() {
+      self.setState({ directory: undefined });
     },
     render: function() {
       var DOM = React.DOM;
+      if(!this.state.directory) {
+        return DOM.button({type: 'button', onClick: this.chooseDirectory}, 'Choose Directory!');
+      }
       if(!this.state.ready) {
         return DOM.div(null, 'Loading vorbis encoder, please wait...');
       }
       return DOM.div(null,
-        'Ready!',
-        this.state.recorder ?
-          DOM.button({type: 'button', onClick: this.stopRecording}, 'Stop recording') :
-          DOM.button({type: 'button', onClick: this.startRecording}, 'Start recording')
+        'Ready! ' + this.state.displayPath,
+        DOM.button({type: 'button', onClick: this.clearDirectory}, 'Clear Directory!'),
+        ScratchRecorder({ vorbisRecorder: vorbisRecorder, audio: audio, directory: this.state.directory })
       );
     }
   });
