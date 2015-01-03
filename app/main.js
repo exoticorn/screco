@@ -28,12 +28,14 @@ require(['libs/react-0.11.2.js', 'vorbisrecorder', 'scratchrecorder'], function(
     setDirectory: function(entry) {
       var self = this;
       self.setState({ directory: entry });
-      chrome.fileSystem.getDisplayPath(entry, function(displayPath) {
-        self.setState({ displayPath: displayPath });
-      });
+      if(entry) {
+        chrome.fileSystem.getDisplayPath(entry, function(displayPath) {
+          self.setState({ displayPath: displayPath });
+        });
+      }
     },
     clearDirectory: function() {
-      self.setState({ directory: undefined });
+      this.setState({ directory: undefined });
     },
     render: function() {
       var DOM = React.DOM;
